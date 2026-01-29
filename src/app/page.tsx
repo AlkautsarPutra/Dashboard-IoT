@@ -1,65 +1,98 @@
-import Image from "next/image";
+"use client"
+
+import { motion } from "framer-motion"
+import SensorChart from "@/components/dashboard/SensorChart"
+import FeederControl from "@/components/dashboard/FeederControl"
+import CleanerControl from "@/components/dashboard/CleanerControl"
+import SystemLogComponent from "@/components/dashboard/SystemLog"
+import { Badge } from "@/components/ui/badge"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import SceneryBackground from "@/components/SceneryBackground"
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+}
+
+const item = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+}
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="relative flex min-h-screen flex-col">
+      {/* Animated Background Scenery */}
+      <SceneryBackground />
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-white/20 bg-white/50 backdrop-blur-xl dark:bg-black/50 dark:border-white/10">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+             <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <span className="text-white font-bold">IoT</span>
+             </div>
+            <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent dark:from-white dark:to-slate-400">
+              Smart Poultry
+            </h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-xs font-medium text-green-700 dark:text-green-400">System Online</span>
+            </div>
+            <ThemeToggle />
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </header>
+
+      {/* Main Content - Compact & Centered */}
+      <main className="relative z-10 flex-1 p-3 md:p-4 lg:p-6">
+        <div className="max-w-6xl mx-auto space-y-4">
+          {/* Top Row: Sensor Charts - Compact */}
+          <motion.div 
+            className="grid gap-3 grid-cols-2 lg:grid-cols-4"
+            variants={container}
+            initial="hidden"
+            animate="show"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <motion.div variants={item} className="col-span-1">
+              <SensorChart 
+                type="temperature" 
+                title="Temperature" 
+                color="#ef4444" 
+              />
+            </motion.div>
+            <motion.div variants={item} className="col-span-1">
+              <SensorChart 
+                type="humidity" 
+                title="Humidity" 
+                color="#3b82f6" 
+              />
+            </motion.div>
+            <motion.div variants={item} className="col-span-1">
+              <FeederControl />
+            </motion.div>
+            <motion.div variants={item} className="col-span-1">
+              <CleanerControl />
+            </motion.div>
+          </motion.div>
+
+          {/* Bottom Row: System Logs - Compact */}
+          <motion.div 
+            variants={item}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
           >
-            Documentation
-          </a>
+            <SystemLogComponent />
+          </motion.div>
         </div>
       </main>
     </div>
-  );
+  )
 }
