@@ -5,8 +5,8 @@ import SensorChart from "@/components/dashboard/SensorChart"
 import FeederControl from "@/components/dashboard/FeederControl"
 import CleanerControl from "@/components/dashboard/CleanerControl"
 import SensorStatus from "@/components/dashboard/SensorStatus"
+import DeviceStatus from "@/components/dashboard/DeviceStatus"
 import SystemLogComponent from "@/components/dashboard/SystemLog"
-import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import SceneryBackground from "@/components/SceneryBackground"
 
@@ -42,9 +42,8 @@ export default function Home() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs font-medium text-green-700 dark:text-green-400">System Online</span>
+            <div className="hidden md:block">
+              <DeviceStatus />
             </div>
             <ThemeToggle />
           </div>
