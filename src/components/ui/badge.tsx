@@ -2,7 +2,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'success'
+  variant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning'
 }
 
 function Badge({ className, variant = "default", ...props }: BadgeProps) {
@@ -11,6 +11,7 @@ function Badge({ className, variant = "default", ...props }: BadgeProps) {
     secondary: "border-transparent bg-zinc-100 text-zinc-900 hover:bg-zinc-100/80",
     destructive: "border-transparent bg-red-500 text-zinc-50 hover:bg-red-500/80",
     success: "border-transparent bg-green-500 text-zinc-50 hover:bg-green-500/80",
+    warning: "border-transparent bg-amber-500 text-zinc-50 hover:bg-amber-500/80",
     outline: "text-zinc-950 dark:text-zinc-50",
   }
   

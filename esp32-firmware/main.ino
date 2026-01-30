@@ -1,135 +1,174 @@
+/*
+ * Smart Poultry ESP32 Firmware v3.0
+ * MANUAL CONTROL MODE - Controlled via Dashboard
+ * 
+ * Features:
+ * - Manual ON/OFF control via Supabase
+ * - Direction control (Forward/Backward)
+ * - Limit switch safety cutoff
+ */
+
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <Arduino_JSON.h>
 
 // ====== WI-FI CONFIG ======
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+const char* ssid = "milik Awal";
+const char* password = "11111111";
 
 // ====== SUPABASE CONFIG ======
-// WARNING: Use HTTP (not HTTPS) if you don't want to deal with Root CA certificates on ESP32, 
-// OR ensure you use WiFiClientSecure with a certificate.
-// For simplicity in this example, we use the REST URL directly.
-const char* supabase_url = "YOUR_SUPABASE_URL"; 
-const char* supabase_key = "YOUR_SUPABASE_ANON_KEY";
+const char* supabase_url = "https://xltfpllfyjxjmwdwocjl.supabase.co";
+const char* supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdGZwbGxmeWp4am13ZHdvY2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2NzY5NzIsImV4cCI6MjA4NTI1Mjk3Mn0.6NBKFv320O01EeU3FxY2W-2RsSpruIPx7dSkCgTMSio";
 
-// ====== PINOUT (From User Code) ======
-// Channel A = Feeder (Auger)
-const int FEED_IN1 = 26; 
-const int FEED_IN2 = 27; 
-const int FEED_EN  = 23; 
+// ====== PIN DEFINITIONS ======
+const int PIN_IN1 = 12;  // Auger Motor A
+const int PIN_IN2 = 14;  // Auger Motor B
+const int PIN_IN3 = 27;  // Konveyor Motor A
+const int PIN_IN4 = 26;  // Konveyor Motor B
+const int PIN_SENSOR = 4; // Limit Switch (Active LOW)
 
-// Channel B = Cleaner (Conveyor)
-const int CLEAN_IN3 = 12; 
-const int CLEAN_IN4 = 13; 
-const int CLEAN_EN  = 14; 
+// ====== MOTOR SPEED SETTINGS ======
+int speedAuger = 255;     // Full Speed
+int speedKonveyor = 130;  // Slower for conveyor
 
-// Sensors
-const int LIMIT_PIN = 4; // Active LOW
-const int TEMP_PIN = 15; // Changed from 4 to avoid conflict
+// ====== STATUS TRACKING ======
+unsigned long lastCommandCheck = 0;
+unsigned long commandCheckInterval = 1000; // Check commands every 1 second
+unsigned long lastStatusUpdate = 0;
+unsigned long statusInterval = 3000;
 
-// ====== SETTINGS ======
-const int PWM_SPEED = 255;
-const unsigned long FEED_DURATION_MS = 6000;
-const unsigned long CLEAN_DURATION_MS = 6000;
-
-// Timer
-unsigned long lastCheckTime = 0;
-unsigned long checkInterval = 2000; // Check commands every 2s
+// Motor states
+bool augerRunning = false;
+bool conveyorRunning = false;
+String augerDirection = "FORWARD";    // FORWARD or BACKWARD
+String conveyorDirection = "FORWARD"; // FORWARD or BACKWARD
 
 void setup() {
   Serial.begin(115200);
-
-  // Initialize Pins
-  pinMode(FEED_IN1, OUTPUT);
-  pinMode(FEED_IN2, OUTPUT);
-  pinMode(FEED_EN, OUTPUT);
   
-  pinMode(CLEAN_IN3, OUTPUT);
-  pinMode(CLEAN_IN4, OUTPUT);
-  pinMode(CLEAN_EN, OUTPUT);
-
-  pinMode(LIMIT_PIN, INPUT_PULLUP);
-
-  stopAll();
-
+  // Initialize Motor Pins
+  pinMode(PIN_IN1, OUTPUT);
+  pinMode(PIN_IN2, OUTPUT);
+  pinMode(PIN_IN3, OUTPUT);
+  pinMode(PIN_IN4, OUTPUT);
+  
+  // Initialize Sensor Pin
+  pinMode(PIN_SENSOR, INPUT_PULLUP);
+  
+  // Stop all motors initially
+  stopAllMotors();
+  
+  Serial.println("=== Smart Poultry v3.0 - MANUAL CONTROL ===");
+  Serial.println("Connecting to WiFi...");
+  
   // Connect to WiFi
   WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi");
-  while(WiFi.status() != WL_CONNECTED) {
+  int retries = 0;
+  while (WiFi.status() != WL_CONNECTED && retries < 40) {
     delay(500);
     Serial.print(".");
+    retries++;
   }
-  Serial.println("\nConnected to WiFi");
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi Connected!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+    logAction("SYSTEM", "ESP32 Connected - Manual Mode");
+  } else {
+    Serial.println("\nWiFi Failed!");
+  }
 }
 
 void loop() {
-  if ((millis() - lastCheckTime) > checkInterval) {
-    if(WiFi.status() == WL_CONNECTED) {
-      checkRemoteCommands();
-      // Optional: Send Sensor Data every X seconds (not every loop)
-      // sendSensorData(); 
+  int sensorState = digitalRead(PIN_SENSOR);
+  
+  // === SAFETY: Stop motors if limit switch triggered ===
+  if (sensorState == LOW) {
+    if (augerRunning || conveyorRunning) {
+      stopAllMotors();
+      augerRunning = false;
+      conveyorRunning = false;
+      Serial.println("SAFETY STOP - Limit Switch Triggered!");
+      logAction("SAFETY", "Motors stopped - Limit switch triggered");
     }
-    lastCheckTime = millis();
   }
-}
-
-void stopAll() {
-  digitalWrite(FEED_IN1, LOW);
-  digitalWrite(FEED_IN2, LOW);
-  analogWrite(FEED_EN, 0);
-
-  digitalWrite(CLEAN_IN3, LOW);
-  digitalWrite(CLEAN_IN4, LOW);
-  analogWrite(CLEAN_EN, 0);
-}
-
-// Logic: Forward half time, Backward half time (From User Request)
-void runFeeder() {
-  Serial.println("Starting Feeder Sequence...");
   
-  // 1. Forward
-  digitalWrite(FEED_IN1, HIGH);
-  digitalWrite(FEED_IN2, LOW);
-  analogWrite(FEED_EN, PWM_SPEED);
-  Serial.println("Feeder Forward");
-  delay(FEED_DURATION_MS / 2);
-
-  // 2. Stop briefly
-  stopAll();
-  delay(500);
-
-  // 3. Backward (Anti-Jam)
-  digitalWrite(FEED_IN1, LOW);
-  digitalWrite(FEED_IN2, HIGH);
-  analogWrite(FEED_EN, PWM_SPEED);
-  Serial.println("Feeder Backward");
-  delay(FEED_DURATION_MS / 2);
-
-  stopAll();
-  Serial.println("Feeder Finihsed");
-  logAction("FEEDER", "Sequence Completed");
+  // === CHECK DASHBOARD COMMANDS ===
+  if (millis() - lastCommandCheck > commandCheckInterval) {
+    if (WiFi.status() == WL_CONNECTED) {
+      checkDashboardCommands();
+    }
+    lastCommandCheck = millis();
+  }
+  
+  // === SEND STATUS UPDATE ===
+  if (millis() - lastStatusUpdate > statusInterval) {
+    if (WiFi.status() == WL_CONNECTED) {
+      sendStatus(sensorState == LOW);
+    }
+    lastStatusUpdate = millis();
+  }
+  
+  delay(100);
 }
 
-void runCleaner() {
-  Serial.println("Starting Cleaner...");
-  digitalWrite(CLEAN_IN3, HIGH);
-  digitalWrite(CLEAN_IN4, LOW);
-  analogWrite(CLEAN_EN, PWM_SPEED);
-  
-  delay(CLEAN_DURATION_MS);
-  
-  stopAll();
-  Serial.println("Cleaner Finished");
-  logAction("CLEANER", "Sequence Completed");
+// === MOTOR CONTROL FUNCTIONS ===
+
+void runAuger(String direction) {
+  if (direction == "FORWARD") {
+    digitalWrite(PIN_IN1, HIGH);
+    digitalWrite(PIN_IN2, LOW);
+    Serial.println("Auger: FORWARD");
+  } else {
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, HIGH);
+    Serial.println("Auger: BACKWARD");
+  }
+  augerRunning = true;
+  augerDirection = direction;
 }
 
-void checkRemoteCommands() {
+void runConveyor(String direction) {
+  if (direction == "FORWARD") {
+    analogWrite(PIN_IN3, speedKonveyor);
+    digitalWrite(PIN_IN4, LOW);
+    Serial.println("Conveyor: FORWARD");
+  } else {
+    analogWrite(PIN_IN3, 0);
+    digitalWrite(PIN_IN4, HIGH);
+    analogWrite(PIN_IN4, speedKonveyor); // Reverse
+    Serial.println("Conveyor: BACKWARD");
+  }
+  conveyorRunning = true;
+  conveyorDirection = direction;
+}
+
+void stopAuger() {
+  digitalWrite(PIN_IN1, LOW);
+  digitalWrite(PIN_IN2, LOW);
+  augerRunning = false;
+  Serial.println("Auger: STOPPED");
+}
+
+void stopConveyor() {
+  analogWrite(PIN_IN3, 0);
+  digitalWrite(PIN_IN4, LOW);
+  conveyorRunning = false;
+  Serial.println("Conveyor: STOPPED");
+}
+
+void stopAllMotors() {
+  stopAuger();
+  stopConveyor();
+}
+
+// === SUPABASE API FUNCTIONS ===
+
+void checkDashboardCommands() {
   HTTPClient http;
   
-  // Check 'relays' table for any flag set to TRUE
-  // We check FEEDER
-  String url = String(supabase_url) + "/rest/v1/relays?select=*&is_on=eq.true";
+  // Get relay commands from Supabase
+  String url = String(supabase_url) + "/rest/v1/relays?select=*";
   
   http.begin(url);
   http.addHeader("apikey", supabase_key);
@@ -137,52 +176,100 @@ void checkRemoteCommands() {
   
   int httpCode = http.GET();
   
-  if (httpCode > 0) {
+  if (httpCode == 200) {
     String payload = http.getString();
-    JSONVar relays = JSON.parse(payload);
     
-    if (JSON.typeof(relays) != "undefined" && relays.length() > 0) {
-      for (int i = 0; i < relays.length(); i++) {
-        String type = (const char*)relays[i]["type"];
-        int id = (int)relays[i]["id"];
-        
-        if (type == "FEEDER") {
-          runFeeder();
-          resetRelay(id); // Set is_on = false
-        } else if (type == "CLEANER") {
-          runCleaner();
-          resetRelay(id);
+    // Parse FEEDER command
+    if (payload.indexOf("\"type\":\"FEEDER\"") >= 0) {
+      int feederStart = payload.indexOf("\"type\":\"FEEDER\"");
+      int isOnPos = payload.indexOf("\"is_on\":", feederStart);
+      int dirPos = payload.indexOf("\"direction\":", feederStart);
+      
+      bool feederOn = payload.substring(isOnPos + 8, isOnPos + 12).indexOf("true") >= 0;
+      
+      String feederDir = "FORWARD";
+      if (dirPos > 0) {
+        int dirStart = payload.indexOf("\"", dirPos + 12) + 1;
+        int dirEnd = payload.indexOf("\"", dirStart);
+        if (dirEnd > dirStart) {
+          feederDir = payload.substring(dirStart, dirEnd);
         }
+      }
+      
+      if (feederOn && !augerRunning) {
+        runAuger(feederDir);
+        logAction("FEEDER", "Started - " + feederDir);
+      } else if (!feederOn && augerRunning) {
+        stopAuger();
+        logAction("FEEDER", "Stopped");
+      }
+    }
+    
+    // Parse CLEANER command  
+    if (payload.indexOf("\"type\":\"CLEANER\"") >= 0) {
+      int cleanerStart = payload.indexOf("\"type\":\"CLEANER\"");
+      int isOnPos = payload.indexOf("\"is_on\":", cleanerStart);
+      int dirPos = payload.indexOf("\"direction\":", cleanerStart);
+      
+      bool cleanerOn = payload.substring(isOnPos + 8, isOnPos + 12).indexOf("true") >= 0;
+      
+      String cleanerDir = "FORWARD";
+      if (dirPos > 0) {
+        int dirStart = payload.indexOf("\"", dirPos + 12) + 1;
+        int dirEnd = payload.indexOf("\"", dirStart);
+        if (dirEnd > dirStart) {
+          cleanerDir = payload.substring(dirStart, dirEnd);
+        }
+      }
+      
+      if (cleanerOn && !conveyorRunning) {
+        runConveyor(cleanerDir);
+        logAction("CLEANER", "Started - " + cleanerDir);
+      } else if (!cleanerOn && conveyorRunning) {
+        stopConveyor();
+        logAction("CLEANER", "Stopped");
       }
     }
   }
+  
   http.end();
 }
 
-void resetRelay(int id) {
+void sendStatus(bool limitTriggered) {
   HTTPClient http;
-  String url = String(supabase_url) + "/rest/v1/relays?id=eq." + String(id);
+  
+  String url = String(supabase_url) + "/rest/v1/sensor_status";
+  
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("apikey", supabase_key);
   http.addHeader("Authorization", String("Bearer ") + supabase_key);
-  http.addHeader("Prefer", "return=minimal"); // Don't need response body
+  http.addHeader("Prefer", "return=minimal");
   
-  // PATCH request to set is_on = false
-  String body = "{\"is_on\": false}";
-  http.PATCH(body);
+  String body = "{";
+  body += "\"device_id\":\"esp32_feeder\",";
+  body += "\"sensor_name\":\"limit_switch\",";
+  body += "\"is_triggered\":" + String(limitTriggered ? "true" : "false") + ",";
+  body += "\"motors_running\":" + String((augerRunning || conveyorRunning) ? "true" : "false");
+  body += "}";
+  
+  http.POST(body);
   http.end();
 }
 
-void logAction(String type, String msg) {
+void logAction(String type, String message) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  
   HTTPClient http;
   String url = String(supabase_url) + "/rest/v1/logs";
+  
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("apikey", supabase_key);
   http.addHeader("Authorization", String("Bearer ") + supabase_key);
+  http.addHeader("Prefer", "return=minimal");
   
-  String body = "{\"type\": \"" + type + "\", \"message\": \"" + msg + "\"}";
+  String body = "{\"type\": \"" + type + "\", \"message\": \"" + message + "\"}";
   http.POST(body);
   http.end();
 }

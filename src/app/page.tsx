@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import SensorChart from "@/components/dashboard/SensorChart"
 import FeederControl from "@/components/dashboard/FeederControl"
 import CleanerControl from "@/components/dashboard/CleanerControl"
+import SensorStatus from "@/components/dashboard/SensorStatus"
 import SystemLogComponent from "@/components/dashboard/SystemLog"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
@@ -53,9 +54,9 @@ export default function Home() {
       {/* Main Content - Compact & Centered */}
       <main className="relative z-10 flex-1 p-3 md:p-4 lg:p-6">
         <div className="max-w-6xl mx-auto space-y-4">
-          {/* Top Row: Sensor Charts - Compact */}
+          {/* Top Row: Status Cards Grid */}
           <motion.div 
-            className="grid gap-3 grid-cols-2 lg:grid-cols-4"
+            className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
             variants={container}
             initial="hidden"
             animate="show"
@@ -73,6 +74,9 @@ export default function Home() {
                 title="Humidity" 
                 color="#3b82f6" 
               />
+            </motion.div>
+            <motion.div variants={item} className="col-span-1">
+              <SensorStatus />
             </motion.div>
             <motion.div variants={item} className="col-span-1">
               <FeederControl />
