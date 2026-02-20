@@ -10,8 +10,8 @@ Dashboard IoT untuk monitoring dan kontrol kandang ayam secara realtime mengguna
 - [Tech Stack](#tech-stack)
 - [Struktur Folder](#struktur-folder)
 - [Database (Supabase)](#database-supabase)
-- [Firmware ESP32](#firmware-esp32)
-- [Web Dashboard (Next.js)](#web-dashboard-nextjs)
+- [Firmware ESP32 — Penjelasan Detail Codebase](#firmware-esp32--penjelasan-detail-codebase)
+- [Web Dashboard (Next.js) — Penjelasan Detail Codebase](#web-dashboard-nextjs--penjelasan-detail-codebase)
 - [Integrasi Firmware ↔ Database ↔ Web](#integrasi-firmware--database--web)
 - [Cara Menjalankan](#cara-menjalankan)
 
