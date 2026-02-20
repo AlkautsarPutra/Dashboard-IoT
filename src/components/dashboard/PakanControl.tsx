@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase"
 import { Loader2, Play, Square, RotateCcw, RotateCw } from "lucide-react"
 
-export default function CleanerControl() {
+export default function PakanControl() {
   const [loading, setLoading] = useState(false)
   const [isOn, setIsOn] = useState(false)
   const [direction, setDirection] = useState<'FORWARD' | 'BACKWARD'>('FORWARD')
@@ -16,7 +16,7 @@ export default function CleanerControl() {
     const { data } = await supabase
       .from('relays')
       .select('*')
-      .eq('type', 'CLEANER')
+      .eq('type', 'FEEDER')
       .single()
     
     if (data) {
@@ -27,7 +27,6 @@ export default function CleanerControl() {
 
   useEffect(() => {
     fetchState()
-    // Poll for updates every 2 seconds
     const interval = setInterval(fetchState, 2000)
     return () => clearInterval(interval)
   }, [fetchState])
@@ -39,13 +38,13 @@ export default function CleanerControl() {
       const { error } = await supabase
         .from('relays')
         .update({ is_on: newState, direction })
-        .eq('type', 'CLEANER')
+        .eq('type', 'FEEDER')
 
       if (error) throw error
       setIsOn(newState)
       
       await supabase.from('logs').insert({
-        message: `Conveyor ${newState ? 'ON' : 'OFF'} - ${direction}`,
+        message: `Pakan ${newState ? 'ON' : 'OFF'} - ${direction}`,
         type: 'INFO'
       })
     } catch (err) {
@@ -56,12 +55,12 @@ export default function CleanerControl() {
   }
 
   const changeDirection = async (dir: 'FORWARD' | 'BACKWARD') => {
-    if (isOn) return // Cannot change direction while running
+    if (isOn) return
     try {
       await supabase
         .from('relays')
         .update({ direction: dir })
-        .eq('type', 'CLEANER')
+        .eq('type', 'FEEDER')
       
       setDirection(dir)
     } catch (err) {
@@ -70,56 +69,59 @@ export default function CleanerControl() {
   }
 
   return (
-    <Card className="h-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2">
-        <CardTitle className="text-xs font-medium text-muted-foreground">Conveyor</CardTitle>
-        <Badge variant={isOn ? 'success' : 'secondary'} className="text-[10px] px-1.5 py-0">
+    <Card className="h-full border-amber-500/20 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🌾</span>
+          <CardTitle className="text-sm font-semibold">Pakan</CardTitle>
+        </div>
+        <Badge variant={isOn ? 'success' : 'secondary'} className="text-[10px] px-2 py-0.5">
           {isOn ? 'ON' : 'OFF'}
         </Badge>
       </CardHeader>
-      <CardContent className="p-3 pt-0">
-        <div className="flex flex-col gap-2">
+      <CardContent className="p-4 pt-0">
+        <div className="flex flex-col gap-3">
           {/* Direction Controls */}
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             <Button 
               size="sm"
               variant={direction === 'BACKWARD' ? 'default' : 'outline'}
-              className="flex-1 h-7 text-[10px]"
+              className="flex-1 h-8 text-xs"
               onClick={() => changeDirection('BACKWARD')}
               disabled={isOn}
             >
-              <RotateCcw className="h-3 w-3 mr-1" />
+              <RotateCcw className="h-3.5 w-3.5 mr-1" />
               Kiri
             </Button>
             <Button 
               size="sm"
               variant={direction === 'FORWARD' ? 'default' : 'outline'}
-              className="flex-1 h-7 text-[10px]"
+              className="flex-1 h-8 text-xs"
               onClick={() => changeDirection('FORWARD')}
               disabled={isOn}
             >
-              <RotateCw className="h-3 w-3 mr-1" />
+              <RotateCw className="h-3.5 w-3.5 mr-1" />
               Kanan
             </Button>
           </div>
           
           {/* ON/OFF Button */}
           <Button 
-            className="w-full h-9" 
+            className="w-full h-10" 
             size="sm"
             variant={isOn ? "destructive" : "default"}
             onClick={toggleMotor}
             disabled={loading}
           >
             {loading ? (
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
             ) : isOn ? (
               <>
-                <Square className="mr-1 h-4 w-4" /> STOP
+                <Square className="mr-1.5 h-4 w-4" /> STOP
               </>
             ) : (
               <>
-                <Play className="mr-1 h-4 w-4" /> START
+                <Play className="mr-1.5 h-4 w-4" /> START
               </>
             )}
           </Button>

@@ -23,3 +23,17 @@ export interface SystemLog {
   message: string
   type: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS'
 }
+
+export interface Schedule {
+  id: number
+  created_at?: string
+  relay_type: 'FEEDER' | 'CLEANER'
+  schedule_mode: 'fixed' | 'interval'
+  schedule_time?: string
+  interval_minutes?: number
+  direction: 'FORWARD' | 'BACKWARD'
+  duration_seconds: number
+  is_active: boolean
+  last_triggered_at?: string
+  label?: string
+}

@@ -53,7 +53,7 @@ export default function SystemLogComponent() {
           <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
           <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
         </div>
-        <span className="text-[10px] text-gray-400 font-mono">system@poultry-iot:~</span>
+        <span className="text-[10px] text-gray-400 font-mono">system@sikaypin:~</span>
       </div>
       
       {/* Terminal Content */}

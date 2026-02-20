@@ -1,6 +1,6 @@
 /*
- * Smart Poultry ESP32 Firmware v3.3
- * Compatible with ESP32 Arduino Core 3.x
+ * Smart Poultry ESP32 Firmware v3.4
+ * Using digitalWrite for FULL SPEED (no PWM)
  */
 
 #include <WiFi.h>
@@ -21,15 +21,10 @@ const int PIN_IN3 = 27;  // Konveyor Motor A
 const int PIN_IN4 = 26;  // Konveyor Motor B
 const int PIN_SENSOR = 4; // Limit Switch
 
-// ====== MOTOR SPEED ======
-int motorSpeed = 255;  // Full speed (0-255)
-
 // ====== STATUS TRACKING ======
 unsigned long lastCommandCheck = 0;
-unsigned long commandCheckInterval = 500;
-unsigned long lastWiFiCheck = 0;
 unsigned long lastStatusSend = 0;
-unsigned long statusSendInterval = 10000; // Send status every 10 seconds
+unsigned long lastWiFiCheck = 0;
 
 bool augerOn = false;
 bool conveyorOn = false;
@@ -41,20 +36,17 @@ int failedRequests = 0;
 void setup() {
   Serial.begin(115200);
   
-  // Setup PWM using new ESP32 Arduino Core 3.x API
-  // ledcAttach(pin, frequency, resolution)
-  ledcAttach(PIN_IN1, 1000, 8);  // 1kHz, 8-bit
-  ledcAttach(PIN_IN2, 1000, 8);
-  ledcAttach(PIN_IN3, 1000, 8);
-  ledcAttach(PIN_IN4, 1000, 8);
-  
-  // Initialize Sensor Pin
+  // Setup pins as OUTPUT (using digitalWrite for full speed)
+  pinMode(PIN_IN1, OUTPUT);
+  pinMode(PIN_IN2, OUTPUT);
+  pinMode(PIN_IN3, OUTPUT);
+  pinMode(PIN_IN4, OUTPUT);
   pinMode(PIN_SENSOR, INPUT_PULLUP);
   
   // Stop all motors
   stopAllMotors();
   
-  Serial.println("=== Smart Poultry v3.3 ===");
+  Serial.println("=== Smart Poultry v3.4 - FULL SPEED ===");
   connectWiFi();
 }
 
@@ -90,7 +82,7 @@ void loop() {
     Serial.println("SAFETY STOP!");
   }
   
-  // Check WiFi
+  // Check WiFi every 5 seconds
   if (millis() - lastWiFiCheck > 5000) {
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("WiFi lost, reconnecting...");
@@ -99,63 +91,64 @@ void loop() {
     lastWiFiCheck = millis();
   }
   
-  // Check commands
-  if (millis() - lastCommandCheck > commandCheckInterval) {
+  // Check commands every 500ms
+  if (millis() - lastCommandCheck > 500) {
     if (WiFi.status() == WL_CONNECTED) {
       checkCommands();
     }
     lastCommandCheck = millis();
   }
   
-  // Send status to dashboard (for online indicator)
-  if (millis() - lastStatusSend > statusSendInterval) {
+  // Send status every 10 seconds
+  if (millis() - lastStatusSend > 10000) {
     if (WiFi.status() == WL_CONNECTED) {
       sendStatus(sensorState == LOW);
     }
     lastStatusSend = millis();
   }
   
-  // Apply motor states
+  // Apply motor states continuously
   applyMotorStates();
   
   delay(50);
 }
 
 void applyMotorStates() {
-  // === AUGER MOTOR ===
+  // === AUGER MOTOR (FULL SPEED with digitalWrite) ===
   if (augerOn) {
     if (augerDir == "FORWARD") {
-      ledcWrite(PIN_IN1, motorSpeed);
-      ledcWrite(PIN_IN2, 0);
+      digitalWrite(PIN_IN1, HIGH);
+      digitalWrite(PIN_IN2, LOW);
     } else {
-      ledcWrite(PIN_IN1, 0);
-      ledcWrite(PIN_IN2, motorSpeed);
+      digitalWrite(PIN_IN1, LOW);
+      digitalWrite(PIN_IN2, HIGH);
     }
   } else {
-    ledcWrite(PIN_IN1, 0);
-    ledcWrite(PIN_IN2, 0);
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, LOW);
   }
   
-  // === CONVEYOR MOTOR ===
+  // === CONVEYOR MOTOR (FULL SPEED with digitalWrite) ===
   if (conveyorOn) {
     if (conveyorDir == "FORWARD") {
-      ledcWrite(PIN_IN3, motorSpeed);
-      ledcWrite(PIN_IN4, 0);
+      digitalWrite(PIN_IN3, HIGH);
+      digitalWrite(PIN_IN4, LOW);
     } else {
-      ledcWrite(PIN_IN3, 0);
-      ledcWrite(PIN_IN4, motorSpeed);
+      digitalWrite(PIN_IN3, LOW);
+      digitalWrite(PIN_IN4, HIGH);
     }
   } else {
-    ledcWrite(PIN_IN3, 0);
-    ledcWrite(PIN_IN4, 0);
+    digitalWrite(PIN_IN3, LOW);
+    digitalWrite(PIN_IN4, LOW);
   }
 }
 
 void stopAllMotors() {
-  ledcWrite(PIN_IN1, 0);
-  ledcWrite(PIN_IN2, 0);
-  ledcWrite(PIN_IN3, 0);
-  ledcWrite(PIN_IN4, 0);
+  digitalWrite(PIN_IN1, LOW);
+  digitalWrite(PIN_IN2, LOW);
+  digitalWrite(PIN_IN3, LOW);
+  digitalWrite(PIN_IN4, LOW);
+  Serial.println("Motors STOPPED");
 }
 
 void sendStatus(bool limitTriggered) {
@@ -179,7 +172,9 @@ void sendStatus(bool limitTriggered) {
   
   int httpCode = http.POST(body);
   if (httpCode > 0) {
-    Serial.println("Status sent to dashboard");
+    Serial.println("Status sent OK");
+  } else {
+    Serial.println("Status send FAILED");
   }
   http.end();
 }
@@ -209,7 +204,7 @@ void checkCommands() {
       bool newState = section.indexOf("\"is_on\":true") >= 0;
       if (newState != augerOn) {
         augerOn = newState;
-        Serial.println(augerOn ? "AUGER: ON" : "AUGER: OFF");
+        Serial.println(augerOn ? ">>> AUGER: ON" : ">>> AUGER: OFF");
       }
       augerDir = (section.indexOf("BACKWARD") >= 0) ? "BACKWARD" : "FORWARD";
     }
@@ -223,13 +218,14 @@ void checkCommands() {
       bool newState = section.indexOf("\"is_on\":true") >= 0;
       if (newState != conveyorOn) {
         conveyorOn = newState;
-        Serial.println(conveyorOn ? "CONVEYOR: ON" : "CONVEYOR: OFF");
+        Serial.println(conveyorOn ? ">>> CONVEYOR: ON" : ">>> CONVEYOR: OFF");
       }
       conveyorDir = (section.indexOf("BACKWARD") >= 0) ? "BACKWARD" : "FORWARD";
     }
     
   } else {
     failedRequests++;
+    Serial.printf("Request failed: %d\n", httpCode);
     if (failedRequests >= 5) {
       WiFi.disconnect();
       delay(1000);

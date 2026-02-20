@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Smart Poultry Dashboard",
-  description: "IoT Monitoring System",
+  title: "SiKayPin - Sistem Informasi Kandang Ayam Pintar",
+  description: "Dashboard IoT Monitoring Kandang Ayam Pintar",
 };
 
 export default function RootLayout({

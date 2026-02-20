@@ -61,7 +61,7 @@ export default function SensorStatus() {
     <Card className="h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2">
         <CardTitle className="text-xs font-medium text-muted-foreground">
-          Feed Status
+          Status Pakan
         </CardTitle>
         {loading ? (
           <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -70,7 +70,7 @@ export default function SensorStatus() {
             variant={isFull ? "success" : isRunning ? "warning" : "secondary"} 
             className="text-[10px] px-1.5 py-0"
           >
-            {isFull ? "FULL" : isRunning ? "FILLING" : "IDLE"}
+            {isFull ? "PENUH" : isRunning ? "MENGISI" : "SIAGA"}
           </Badge>
         )}
       </CardHeader>
@@ -88,10 +88,10 @@ export default function SensorStatus() {
             </div>
             <div className="flex-1">
               <div className="text-sm font-bold">
-                {isFull ? "Container Full" : isRunning ? "Filling..." : "Standby"}
+                {isFull ? "Wadah Penuh" : isRunning ? "Mengisi..." : "Siaga"}
               </div>
               <div className="text-[10px] text-muted-foreground">
-                Limit Switch Sensor
+                Sensor Limit Switch
               </div>
             </div>
           </div>
@@ -104,8 +104,8 @@ export default function SensorStatus() {
                 : 'text-slate-400'
             }`} />
             <span className="text-xs text-muted-foreground">
-              Motors: <span className={isRunning ? 'text-green-600 dark:text-green-400 font-medium' : ''}>
-                {isRunning ? "Running" : "Stopped"}
+              Motor: <span className={isRunning ? 'text-green-600 dark:text-green-400 font-medium' : ''}>
+                {isRunning ? "Berjalan" : "Berhenti"}
               </span>
             </span>
           </div>
